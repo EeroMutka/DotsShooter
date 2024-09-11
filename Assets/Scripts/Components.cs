@@ -4,7 +4,7 @@ using Unity.Mathematics;
 public struct GameComponent : IComponentData
 {
 	public int FrameIndex;
-	public Entity Prefab;
+	public Entity BulletPrefab;
 	public Entity PlayerPrefab;
 	public float3 SpawnPosition;
 	public float NextSpawnTime;
