@@ -6,9 +6,27 @@ public struct GameComponent : IComponentData
 	public int FrameIndex;
 	public Entity BulletPrefab;
 	public Entity PlayerPrefab;
+	public Entity EnemyPrefab;
 	public float3 SpawnPosition;
-	public float NextSpawnTime;
+	public float NextEnemySpawnTime;
 	public float SpawnRate;
+}
+
+public struct EnemyComponent : IComponentData
+{
+	// public float2 MovementTargetPosition;
+	
+	public float NextBulletSpawnTimer;
+	// so an enemy should slowly follow the player...
+	
+	
+	// what kind of enemy should this be?
+	// It could either be a "shoot consistently towards the player" or "do a bullet burst every now and then"
+}
+
+public struct ColliderComponent : IComponentData
+{
+	public bool DidCollide;
 }
 
 public struct BulletComponent : IComponentData
@@ -18,7 +36,8 @@ public struct BulletComponent : IComponentData
 
 public struct PlayerComponent : IComponentData
 {
-	public float2 Position;
-	public float2 Velocity;
+	public float NextBulletSpawnTimer;
+	// public float2 Position;
+	// public float2 Velocity;
 }
 

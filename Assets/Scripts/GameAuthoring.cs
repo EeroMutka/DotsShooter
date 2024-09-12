@@ -5,6 +5,7 @@ class GameAuthoring : MonoBehaviour
 {
 	public GameObject BulletPrefab;
 	public GameObject PlayerPrefab;
+	public GameObject EnemyPrefab;
 	public float SpawnRate;
 }
 
@@ -21,8 +22,9 @@ class GameBaker : Baker<GameAuthoring>
 			FrameIndex = 0,
 			BulletPrefab = GetEntity(authoring.BulletPrefab, TransformUsageFlags.Dynamic),
 			PlayerPrefab = GetEntity(authoring.PlayerPrefab, TransformUsageFlags.Dynamic),
+			EnemyPrefab = GetEntity(authoring.EnemyPrefab, TransformUsageFlags.Dynamic),
 			SpawnPosition = authoring.transform.position,
-			NextSpawnTime = 0.0f,
+			NextEnemySpawnTime = 0.0f,
 			SpawnRate = authoring.SpawnRate
 		});
 	}

@@ -27,7 +27,7 @@ public class CameraScript : MonoBehaviour
 			
 			Vector3 targetPosition =
 				new Vector3(playerTransform.Position.x, playerTransform.Position.y, playerTransform.Position.z) +
-				new Vector3(0, 10f, 0);
+				new Vector3(0, 50f, 0);
 				
 			transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 10f);
 		}
