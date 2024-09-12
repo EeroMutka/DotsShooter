@@ -34,8 +34,7 @@ public partial struct GameSystem : ISystem
 		const float worldLimits = 50f;
 		
 		// Destroy bullet if out of bounds
-		if (colliderComponent.DidCollide ||
-			transform.Position.x > worldLimits || transform.Position.x < -worldLimits ||
+		if (transform.Position.x > worldLimits || transform.Position.x < -worldLimits ||
 			transform.Position.z > worldLimits || transform.Position.z < -worldLimits)
 		{
 			em.DestroyEntity(entity);
@@ -71,6 +70,11 @@ public partial struct GameSystem : ISystem
 	
 	
 	[BurstCompile]
+	public void ProcessCollision(ref SystemState state) {
+		
+	}
+	
+	[BurstCompile]
 	public void UpdateCollisionDetectionSystem(ref SystemState state)
 	{
 		EntityManager em = state.EntityManager;
@@ -79,10 +83,9 @@ public partial struct GameSystem : ISystem
 		
 		const float worldLimits = 50f;
 		
-		// do collision detection using a grid...
-		// int[] entitiesInTile = new int[50*50];
-		
 		int tileMapSize = 64;
+		
+		// Here we use a grid acceleration structure for finding colliding detection pairs to avoid an O(N^2) loop
 		
 		NativeArray<CollisionDetectionTile> entitiesInTile = new NativeArray<CollisionDetectionTile>(tileMapSize*tileMapSize, Allocator.Temp);
 		for (int i = 0; i < entitiesInTile.Length; i++) {
@@ -127,7 +130,8 @@ public partial struct GameSystem : ISystem
 								LocalTransform otherTransform = em.GetComponentData<LocalTransform>(otherEntity);
 								
 								if (math.length(otherTransform.Position - transform.Position) < 1f) {
-									colliderComponent.DidCollide = true;
+									// ProcessCollision...
+									// colliderComponent.LastCollidedWith = otherEntity;
 								}
 							}
 						}
@@ -144,6 +148,7 @@ public partial struct GameSystem : ISystem
 	{
 		EntityManager em = state.EntityManager;
 		EnemyComponent enemyComponent = em.GetComponentData<EnemyComponent>(enemy);
+		ColliderComponent collider = em.GetComponentData<ColliderComponent>(enemy);
 		
 		LocalTransform transform = em.GetComponentData<LocalTransform>(enemy);
 		
@@ -160,6 +165,10 @@ public partial struct GameSystem : ISystem
 		
 		em.SetComponentData<LocalTransform>(enemy, transform);
 		state.EntityManager.SetComponentData<EnemyComponent>(enemy, enemyComponent);
+		
+		// if (collider.DidCollide) {
+		// em.DestroyEntity(enemy);
+		// }
 	}
 	
 	[BurstCompile]
@@ -167,7 +176,8 @@ public partial struct GameSystem : ISystem
 	{
 		EntityManager em = state.EntityManager;
 		PlayerComponent playerComponent = em.GetComponentData<PlayerComponent>(playerEntity);
-		
+		ColliderComponent collider = em.GetComponentData<ColliderComponent>(enemy);
+
 		float moveX = 0f;
 		float moveY = 0f;
 		if (Input.GetKey(KeyCode.D)) {
@@ -189,7 +199,6 @@ public partial struct GameSystem : ISystem
 		// let's just use an orthographic camera.
 		float mouseX = Input.mousePosition.x / (float)Screen.width;
 		float mouseY = Input.mousePosition.y / (float)Screen.height;
-		// Debug.Log($"Hello, sailor! {mouseX}, {mouseY}");
 		
 		LocalTransform transform = em.GetComponentData<LocalTransform>(playerEntity);
 		transform.Position = transform.Position + new float3(moveX, 0, moveY) * SystemAPI.Time.DeltaTime * speed;
@@ -206,18 +215,18 @@ public partial struct GameSystem : ISystem
 			if (playerComponent.NextBulletSpawnTimer < 0) {
 				playerComponent.NextBulletSpawnTimer = bulletSpawnInterval;
 			
-				// Spawn a new bullet
+				// Spawn a bullet
 				
 				Entity bullet = em.Instantiate(game.BulletPrefab);
 				em.AddComponent<ColliderComponent>(bullet);
 				em.AddComponent<BulletComponent>(bullet);
 				
-				BulletComponent bulletComponent = new BulletComponent();
-				bulletComponent.Velocity = math.normalize(new float2(mouseX - 0.5f, mouseY - 0.5f)) * 50f;
+				BulletComponent bulletComponent = new BulletComponent {
+					SpawnedByPlayer = true,
+					Velocity = math.normalize(new float2(mouseX - 0.5f, mouseY - 0.5f)) * 50f,
+				};
 				
 				em.SetComponentData<LocalTransform>(bullet, LocalTransform.FromPosition(transform.Position));
-				
-				// hmm... so adding a component is a structural change?
 				em.SetComponentData<BulletComponent>(bullet, bulletComponent);
 			}
 		}
@@ -238,10 +247,13 @@ public partial struct GameSystem : ISystem
 		if (game.FrameIndex == 0) { // Instantiating entities doesn't seem to work inside OnCreate, so spawn during the first frame instead
 			Entity playerEntity = em.Instantiate(game.PlayerPrefab);
 			em.AddComponent<PlayerComponent>(playerEntity);
-			// em.AddComponent<ColliderComponent>(playerEntity);
+			em.AddComponent<ColliderComponent>(playerEntity);
 			
+			PlayerComponent playerComponent = new PlayerComponent{ Health = 50 };
 			LocalTransform playerTransform = LocalTransform.FromPosition(new float3(0, 0, 0));
+			
 			em.SetComponentData<LocalTransform>(playerEntity, playerTransform);
+			em.SetComponentData<PlayerComponent>(playerEntity, playerComponent);
 		}
 		game.FrameIndex += 1;
 		

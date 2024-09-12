@@ -25,7 +25,7 @@ class GameBaker : Baker<GameAuthoring>
 			EnemyPrefab = GetEntity(authoring.EnemyPrefab, TransformUsageFlags.Dynamic),
 			SpawnPosition = authoring.transform.position,
 			NextEnemySpawnTime = 0.0f,
-			SpawnRate = authoring.SpawnRate
+			SpawnRate = authoring.SpawnRate,
 		});
 	}
 }

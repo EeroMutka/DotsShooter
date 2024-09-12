@@ -26,18 +26,18 @@ public struct EnemyComponent : IComponentData
 
 public struct ColliderComponent : IComponentData
 {
-	public bool DidCollide;
+	// public Entity LastCollidedWith; // Null if none
 }
 
 public struct BulletComponent : IComponentData
 {
+	public bool SpawnedByPlayer;
 	public float2 Velocity;
 }
 
 public struct PlayerComponent : IComponentData
 {
 	public float NextBulletSpawnTimer;
-	// public float2 Position;
-	// public float2 Velocity;
+	public int Health;
 }
 
