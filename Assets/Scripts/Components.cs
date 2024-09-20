@@ -13,15 +13,8 @@ public struct GameComponent : IComponentData
 }
 
 public struct EnemyComponent : IComponentData
-{
-	// public float2 MovementTargetPosition;
-	
+{	
 	public float NextBulletSpawnTimer;
-	// so an enemy should slowly follow the player...
-	
-	
-	// what kind of enemy should this be?
-	// It could either be a "shoot consistently towards the player" or "do a bullet burst every now and then"
 }
 
 public struct ColliderComponent : IComponentData
@@ -31,7 +24,6 @@ public struct ColliderComponent : IComponentData
 
 public struct BulletComponent : IComponentData
 {
-	public bool SpawnedByPlayer;
 	public float2 Velocity;
 }
 
