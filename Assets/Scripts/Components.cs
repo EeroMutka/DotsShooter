@@ -26,7 +26,7 @@ public struct EnemyComponent : IComponentData
 
 public struct ColliderComponent : IComponentData
 {
-	// public Entity LastCollidedWith; // Null if none
+	public Entity LastCollidedWith; // Null if none
 }
 
 public struct BulletComponent : IComponentData

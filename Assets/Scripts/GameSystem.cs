@@ -68,12 +68,6 @@ public partial struct GameSystem : ISystem
 		public NativeList<Entity> Entities;
 	};
 	
-	
-	[BurstCompile]
-	public void ProcessCollision(ref SystemState state) {
-		
-	}
-	
 	[BurstCompile]
 	public void UpdateCollisionDetectionSystem(ref SystemState state)
 	{
@@ -130,8 +124,7 @@ public partial struct GameSystem : ISystem
 								LocalTransform otherTransform = em.GetComponentData<LocalTransform>(otherEntity);
 								
 								if (math.length(otherTransform.Position - transform.Position) < 1f) {
-									// ProcessCollision...
-									// colliderComponent.LastCollidedWith = otherEntity;
+									colliderComponent.LastCollidedWith = otherEntity;
 								}
 							}
 						}
@@ -159,16 +152,17 @@ public partial struct GameSystem : ISystem
 		if (players.Length > 0) {
 			Entity player = players[0];
 			LocalTransform playerTransform = em.GetComponentData<LocalTransform>(player);
-			
-			transform.Position += math.normalize(playerTransform.Position - transform.Position) * SystemAPI.Time.DeltaTime * 10f;
+
+			const float speed = 15f;
+			transform.Position += math.normalize(playerTransform.Position - transform.Position) * SystemAPI.Time.DeltaTime * speed;
 		}
 		
 		em.SetComponentData<LocalTransform>(enemy, transform);
 		state.EntityManager.SetComponentData<EnemyComponent>(enemy, enemyComponent);
 		
-		// if (collider.DidCollide) {
-		// em.DestroyEntity(enemy);
-		// }
+		if (collider.LastCollidedWith != Entity.Null) {
+			em.DestroyEntity(enemy);
+		}
 	}
 	
 	[BurstCompile]
@@ -176,7 +170,7 @@ public partial struct GameSystem : ISystem
 	{
 		EntityManager em = state.EntityManager;
 		PlayerComponent playerComponent = em.GetComponentData<PlayerComponent>(playerEntity);
-		ColliderComponent collider = em.GetComponentData<ColliderComponent>(enemy);
+		ColliderComponent collider = em.GetComponentData<ColliderComponent>(playerEntity);
 
 		float moveX = 0f;
 		float moveY = 0f;
@@ -202,11 +196,19 @@ public partial struct GameSystem : ISystem
 		
 		LocalTransform transform = em.GetComponentData<LocalTransform>(playerEntity);
 		transform.Position = transform.Position + new float3(moveX, 0, moveY) * SystemAPI.Time.DeltaTime * speed;
+		transform.Position = new float3(Mathf.Clamp(transform.Position.x, -50f, 50f), transform.Position.y, Mathf.Clamp(transform.Position.z, -50f, 50f));
 		
 		em.SetComponentData<LocalTransform>(playerEntity, transform);
 		
 		if (Input.GetMouseButtonDown(0)) { // reset shoot timer
 			playerComponent.NextBulletSpawnTimer = 0f;
+		}
+
+		if (em.HasComponent<EnemyComponent>(collider.LastCollidedWith))
+        {
+			// collided with enemy!
+            playerComponent.Health -= 1;
+			collider.LastCollidedWith = Entity.Null;
 		}
 		
 		if (Input.GetMouseButton(0)) {
@@ -233,65 +235,73 @@ public partial struct GameSystem : ISystem
 		
 		// Update component data
 		em.SetComponentData<PlayerComponent>(playerEntity, playerComponent);
-	}
-	
-	[BurstCompile]
+        em.SetComponentData<ColliderComponent>(playerEntity, collider);
+
+    }
+
+    [BurstCompile]
 	public void OnUpdate(ref SystemState state)
 	{
+
 		EntityManager em = state.EntityManager;
 		
 		EntityQuery gamesQuery = SystemAPI.QueryBuilder().WithAll<GameComponent>().Build();
-		Entity gameEntity = gamesQuery.ToEntityArray(Allocator.Temp)[0];
-		GameComponent game = em.GetComponentData<GameComponent>(gameEntity);
+		NativeArray<Entity> gameEntities = gamesQuery.ToEntityArray(Allocator.Temp);
 		
-		if (game.FrameIndex == 0) { // Instantiating entities doesn't seem to work inside OnCreate, so spawn during the first frame instead
-			Entity playerEntity = em.Instantiate(game.PlayerPrefab);
-			em.AddComponent<PlayerComponent>(playerEntity);
-			em.AddComponent<ColliderComponent>(playerEntity);
-			
-			PlayerComponent playerComponent = new PlayerComponent{ Health = 50 };
-			LocalTransform playerTransform = LocalTransform.FromPosition(new float3(0, 0, 0));
-			
-			em.SetComponentData<LocalTransform>(playerEntity, playerTransform);
-			em.SetComponentData<PlayerComponent>(playerEntity, playerComponent);
-		}
-		game.FrameIndex += 1;
-		
-		// foreach (RefRW<PlayerComponent> playerComponent in SystemAPI.Query<RefRW<PlayerComponent>>()) {
-		
-		EntityQuery playersQuery = SystemAPI.QueryBuilder().WithAll<PlayerComponent>().Build();
-		NativeArray<Entity> playerEntities = playersQuery.ToEntityArray(Allocator.Temp);
+		if (gameEntities.Length > 0)
+		{
+			GameComponent game = em.GetComponentData<GameComponent>(gameEntities[0]);
+            if (game.FrameIndex == 0)
+            { // Instantiating entities doesn't seem to work inside OnCreate, so spawn during the first frame instead
+                Entity playerEntity = em.Instantiate(game.PlayerPrefab);
+                em.AddComponent<PlayerComponent>(playerEntity);
+                em.AddComponent<ColliderComponent>(playerEntity);
 
-		// we want an array of player entities...
-		// foreach (var (playerComponent, playerEntity) in SystemAPI.Query<RefRW<PlayerComponent>>().WithEntityAccess()) {
-		foreach (Entity playerEntity in playerEntities) {
-			// playerComponent.ValueRW.Velocity = new float2(1000f, 5000f);
-			// LocalTransform transform = em.GetComponentData<LocalTransform>(playerEntity);
-			
-			UpdatePlayer(ref state, game, playerEntity);
-		}
-		
-		// Spawn enemies
-		game.NextEnemySpawnTime -= SystemAPI.Time.DeltaTime;
-		if (game.NextEnemySpawnTime < 0f) {
-			game.NextEnemySpawnTime = 2f;
-			
-			Entity enemy = em.Instantiate(game.EnemyPrefab);
-			em.AddComponent<EnemyComponent>(enemy);
-			em.AddComponent<ColliderComponent>(enemy);
-			
-			LocalTransform playerTransform = LocalTransform.FromPosition(new float3(UnityEngine.Random.Range(-50f, 50f), 0, UnityEngine.Random.Range(-50f, 50f)));
-			em.SetComponentData<LocalTransform>(enemy, playerTransform);
-		}
-		
-		UpdateCollisionDetectionSystem(ref state);
-		UpdateBulletSystem(ref state);
-		UpdateEnemySystem(ref state);
-		
-		em.SetComponentData<GameComponent>(gameEntity, game);
-	}
+                PlayerComponent playerComponent = new PlayerComponent { Health = 50 };
+                LocalTransform playerTransform = LocalTransform.FromPosition(new float3(0, 0, 0));
 
-	/*private void ProcessSpawner(ref SystemState state, RefRW<GameComponent> game)
+                em.SetComponentData<LocalTransform>(playerEntity, playerTransform);
+                em.SetComponentData<PlayerComponent>(playerEntity, playerComponent);
+            }
+            game.FrameIndex += 1;
+
+			UpdateCollisionDetectionSystem(ref state);
+
+            EntityQuery playersQuery = SystemAPI.QueryBuilder().WithAll<PlayerComponent>().Build();
+            NativeArray<Entity> playerEntities = playersQuery.ToEntityArray(Allocator.Temp);
+			
+			bool waveIsActive = math.frac(SystemAPI.Time.ElapsedTime / 10f) < 0.3f;
+			if (waveIsActive) {
+				// Spawn enemies
+				game.NextEnemySpawnTime -= SystemAPI.Time.DeltaTime;
+				if (game.NextEnemySpawnTime < 0f) {
+					game.NextEnemySpawnTime = 0.07f;
+
+					Entity enemy = em.Instantiate(game.EnemyPrefab);
+					em.AddComponent<EnemyComponent>(enemy);
+					em.AddComponent<ColliderComponent>(enemy);
+
+					float3 enemyPos = math.normalize(new float3(UnityEngine.Random.Range(-1f, 1f), 0, UnityEngine.Random.Range(-1f, 1f))) * 80f;
+                    LocalTransform enemyTransform = LocalTransform.FromPosition(enemyPos);
+					em.SetComponentData<LocalTransform>(enemy, enemyTransform);
+				}
+			}
+
+
+            // we want an array of player entities...
+            // foreach (var (playerComponent, playerEntity) in SystemAPI.Query<RefRW<PlayerComponent>>().WithEntityAccess()) {
+            foreach (Entity playerEntity in playerEntities)
+            {
+                UpdatePlayer(ref state, game, playerEntity);
+            }
+			UpdateBulletSystem(ref state);
+			UpdateEnemySystem(ref state);
+
+			em.SetComponentData<GameComponent>(gameEntities[0], game);
+        }
+    }
+
+    /*private void ProcessSpawner(ref SystemState state, RefRW<GameComponent> game)
 	{
 		// If the next spawn time has passed.
 		if (game.ValueRO.NextSpawnTime < SystemAPI.Time.ElapsedTime)
